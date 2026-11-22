@@ -27,13 +27,26 @@
   #claire { position: fixed; top: 0; left: 0; width: 100%; height: calc(100vh + env(safe-area-inset-top)); border: 0; background: #EDEDED; }
   /* måler iPhonens sikre kanter */
   #probe { position: fixed; top: 0; left: 0; width: 0; height: 0; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); visibility: hidden; }
+  /* Menuen i bunden tegnes HER (uden for Googles rammer), så den altid sidder helt nede – på alle iPhone-modeller */
+  #nav { display: none; position: fixed; left: 0; right: 0; z-index: 10; background: #FFFFFF; border-top: 1px solid rgba(0,0,0,.08);
+         padding: 5px 6px 0; box-sizing: border-box; overflow: hidden; align-items: flex-start; font: 600 11px/1.1 -apple-system, BlinkMacSystemFont, sans-serif; }
+  #nav.on { display: flex; }
+  #nav button { flex: 1 1 0; min-width: 0; height: 58px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; background: none;
+                padding: 0 2px; line-height: 1.2; color: #A1A1AA; font: inherit; -webkit-tap-highlight-color: transparent; }
+  #nav button.on { color: #0B0B0C; }
+  #nav svg { flex: none; display: block; width: 24px !important; height: 24px !important; min-width: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  #nav button.on svg { stroke-width: 2.1; }
+  #nav .dot { position: absolute; top: 4px; left: calc(50% + 8px); width: 8px; height: 8px; border-radius: 50%; border: 2px solid #fff; }
+  #nav .dot.bp { background: #D97706; } #nav .dot.ba { background: #DC2626; }
+  #nav.dark { background: #131316; border-top-color: rgba(255,255,255,.08); }
+  #nav.dark button { color: #71717A; } #nav.dark button.on { color: #FAFAFA; } #nav.dark .dot { border-color: #131316; }
   .setup { display: none; min-height: 100%; box-sizing: border-box; padding: calc(40px + env(safe-area-inset-top)) 24px 40px; max-width: 460px; margin: 0 auto; }
   .setup.on { display: block; }
   .mark { width: 64px; height: 64px; border-radius: 50%; background: #fff; color: #0B0B0C; display: grid; place-items: center; font: 700 30px/1 -apple-system, sans-serif; margin-bottom: 20px; }
   h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -.02em; }
   p { color: #A1A1AA; margin: 0 0 20px; }
-  input { width: 100%; box-sizing: border-box; font-size: 16px; padding: 14px 16px; border-radius: 14px; border: 1px solid #2A2A30; background: #131316; color: #fff; }
-  button { margin-top: 12px; width: 100%; font: 600 16px/1 -apple-system, sans-serif; padding: 15px; border-radius: 999px; border: 0; background: #fff; color: #0B0B0C; }
+  .setup input { width: 100%; box-sizing: border-box; font-size: 16px; padding: 14px 16px; border-radius: 14px; border: 1px solid #2A2A30; background: #131316; color: #fff; }
+  .setup button { margin-top: 12px; width: 100%; font: 600 16px/1 -apple-system, sans-serif; padding: 15px; border-radius: 999px; border: 0; background: #fff; color: #0B0B0C; }
   .err { color: #F87171; margin-top: 12px; min-height: 20px; }
   .slow { display: none; position: fixed; left: 16px; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom)); text-align: center; color: #A1A1AA; font-size: 13px; }
   .slow a { color: #fff; }
@@ -52,6 +65,7 @@
   <div class="err" id="err"></div>
 </div>
 
+<nav id="nav" aria-label="Menu"></nav>
 <div class="slow" id="slow">Åbner Claire … Sker der ikke noget? <a id="direct" href="#">Åbn Claire direkte</a></div>
 
 <script>
@@ -75,21 +89,61 @@
     var t = setTimeout(function () { document.getElementById('slow').style.display = 'block'; }, 12000);
     f.addEventListener('load', function () { clearTimeout(t); document.getElementById('slow').style.display = 'none'; });
   }
-  // Fyld hele skærmen, også bag hjem-stregen
-  function fitFrame() {
-    var f = document.getElementById('claire'); if (!f) return;
+  var ICONS = {"overview": "<path d=\"M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z\"/>", "tracks": "<path d=\"M9 18V5l12-2v13\"/><circle cx=\"6\" cy=\"18\" r=\"3\"/><circle cx=\"18\" cy=\"16\" r=\"3\"/>", "economy": "<path d=\"M3 20h18\"/><rect x=\"5\" y=\"11\" width=\"3\" height=\"6\" rx=\"1\"/><rect x=\"10.5\" y=\"7\" width=\"3\" height=\"10\" rx=\"1\"/><rect x=\"16\" y=\"4\" width=\"3\" height=\"13\" rx=\"1\"/>", "radio": "<rect x=\"3\" y=\"8\" width=\"18\" height=\"12\" rx=\"2\"/><circle cx=\"8\" cy=\"14\" r=\"2.5\"/><path d=\"M14 12h4M14 16h4M7 8l9-5\"/>", "ai": "<path d=\"M12 3l1.8 4.6L18.5 9l-4.7 1.6L12 15l-1.8-4.4L5.5 9l4.7-1.4z\"/><path d=\"M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z\"/>", "inbox": "<path d=\"M3 13h5l2 3h4l2-3h5\"/><path d=\"M5 5h14l2 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-6z\"/>", "calendar": "<rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18M8 3v4M16 3v4\"/>", "more": "<circle cx=\"5\" cy=\"12\" r=\"1.6\"/><circle cx=\"12\" cy=\"12\" r=\"1.6\"/><circle cx=\"19\" cy=\"12\" r=\"1.6\"/>"};
+  var NAV_H = 66;            // menuens højde uden hjem-stregen (ikon + tekst + luft)
+  var navShown = false;
+
+  // Hvor langt ned kan der ses? iPhone-fejl: i hjemmeskærm-appen er siden "klokkens højde" for kort.
+  function screenH() {
     var top = inset('paddingTop');
     var h = window.innerHeight + top;
-    // aldrig højere end selve skærmen (i stående/liggende format)
     try {
       var portrait = window.innerHeight >= window.innerWidth;
-      var screenH = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-      if (screenH && h > screenH) h = screenH;
-      // App på hjemmeskærmen fylder altid hele skærmen – også hvis kanterne endnu ikke er målt (0) ved opstart
-      if (window.navigator.standalone && screenH && !top) h = screenH;
+      var sh = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+      if (sh && h > sh) h = sh;
+      if (window.navigator.standalone && sh && !top) h = sh;
     } catch (e) {}
-    f.style.height = h + 'px';
+    return h;
   }
+  function bottomInset() {
+    var b = inset('paddingBottom');
+    // iPhones med hjem-streg (fra iPhone X til 17/18) er mindst 812 punkter høje
+    if (!b && window.navigator.standalone && Math.max(screen.width, screen.height) >= 812) b = 34;
+    return b;
+  }
+  function layout() {
+    var f = document.getElementById('claire'); if (!f) return;
+    var h = screenH(), nav = document.getElementById('nav');
+    if (navShown) {
+      var nb = NAV_H + bottomInset();
+      nav.style.top = (h - nb) + 'px'; nav.style.height = nb + 'px'; nav.style.paddingBottom = bottomInset() + 'px';
+      f.style.height = (h - nb) + 'px';
+    } else {
+      f.style.height = h + 'px';
+    }
+  }
+  function renderNav(m) {
+    var nav = document.getElementById('nav');
+    var items = (m.items || []).slice(0, 4);
+    navShown = items.length > 0;
+    nav.className = navShown ? ('on' + (m.theme === 'dark' ? ' dark' : '')) : '';
+    nav.innerHTML = '';
+    if (navShown) items.concat([{ k: '__more', label: 'Mere' }]).forEach(function (it) {
+      if (!/^[a-z_]{2,20}$/.test(it.k || '')) return;
+      var b = document.createElement('button');
+      if (it.k === m.active) b.className = 'on';
+      b.innerHTML = '<svg viewBox="0 0 24 24">' + (ICONS[it.k === '__more' ? 'more' : it.k] || ICONS.more) + '</svg>';
+      if (it.dot === 'bp' || it.dot === 'ba') { var d = document.createElement('i'); d.className = 'dot ' + it.dot; b.appendChild(d); }
+      var sp = document.createElement('span'); sp.textContent = String(it.label || '').slice(0, 14); b.appendChild(sp);
+      b.addEventListener('click', function () { if (lastFrame) lastFrame.win.postMessage({ claire: 'go', k: it.k }, lastFrame.origin); });
+      nav.appendChild(b);
+    });
+    layout();
+  }
+
+  // Fyld hele skærmen, også bag hjem-stregen
+  function fitFrame() { layout(); }
+
 
   // "Husk denne enhed": iPhonen sletter Claires eget lager, når appen lukkes. Startsiden gemmer derfor nøglen
   // og giver den kun til Claire (Apps Script-sider på *-script.googleusercontent.com).
@@ -97,7 +151,7 @@
   var lastFrame = null;
   function sendInsets() {
     fitFrame();
-    if (lastFrame) try { lastFrame.win.postMessage({ claire: 'insets', st: inset('paddingTop'), sb: inset('paddingBottom') }, lastFrame.origin); } catch (e) {}
+    if (lastFrame) try { lastFrame.win.postMessage({ claire: 'insets', st: inset('paddingTop'), sb: 0 }, lastFrame.origin); } catch (e) {}
   }
   window.addEventListener('resize', sendInsets);
   window.addEventListener('orientationchange', function () { setTimeout(sendInsets, 300); });
@@ -113,8 +167,12 @@
     var m = ev.data || {};
     if (m.claire === 'getKey') {
       var k = ''; try { k = localStorage.getItem('claire_dev') || ''; } catch (e) {}
-      ev.source.postMessage({ claire: 'key', key: k, st: inset('paddingTop'), sb: inset('paddingBottom') }, ev.origin);
+      // nav: true = startsiden tegner menuen. sb = 0, fordi menuen her selv tager højde for hjem-stregen.
+      ev.source.postMessage({ claire: 'key', key: k, nav: true, st: inset('paddingTop'), sb: 0 }, ev.origin);
       lastFrame = { win: ev.source, origin: ev.origin };
+    } else if (m.claire === 'nav') {
+      lastFrame = { win: ev.source, origin: ev.origin };
+      renderNav(m);
     } else if (m.claire === 'setKey') {
       try {
         if (/^[a-f0-9]{64}$/.test(m.key || '')) localStorage.setItem('claire_dev', m.key);
