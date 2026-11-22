@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<title>Claire</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!-- Gør siden til en app, når den lægges på hjemmeskærmen (iPhone: Del → Føj til hjemmeskærm) -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Claire">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0B0B0C">
+<meta name="robots" content="noindex, nofollow">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  html, body { margin: 0; height: 100%; background: #0B0B0C; overscroll-behavior: none; }
+  body { font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #fff; -webkit-text-size-adjust: 100%; }
+  /* Claire fylder hele skærmen; selve Claire tager højde for notch og hjem-streg (de sendes med i adressen) */
+  #claire { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #0B0B0C; }
+  /* måler iPhonens sikre kanter */
+  #probe { position: fixed; top: 0; left: 0; width: 0; height: 0; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); visibility: hidden; }
+  .setup { display: none; min-height: 100%; box-sizing: border-box; padding: calc(40px + env(safe-area-inset-top)) 24px 40px; max-width: 460px; margin: 0 auto; }
+  .setup.on { display: block; }
+  .mark { width: 64px; height: 64px; border-radius: 50%; background: #fff; color: #0B0B0C; display: grid; place-items: center; font: 700 30px/1 -apple-system, sans-serif; margin-bottom: 20px; }
+  h1 { font-size: 28px; margin: 0 0 8px; letter-spacing: -.02em; }
+  p { color: #A1A1AA; margin: 0 0 20px; }
+  input { width: 100%; box-sizing: border-box; font-size: 16px; padding: 14px 16px; border-radius: 14px; border: 1px solid #2A2A30; background: #131316; color: #fff; }
+  button { margin-top: 12px; width: 100%; font: 600 16px/1 -apple-system, sans-serif; padding: 15px; border-radius: 999px; border: 0; background: #fff; color: #0B0B0C; }
+  .err { color: #F87171; margin-top: 12px; min-height: 20px; }
+  .slow { display: none; position: fixed; left: 16px; right: 16px; bottom: calc(24px + env(safe-area-inset-bottom)); text-align: center; color: #A1A1AA; font-size: 13px; }
+  .slow a { color: #fff; }
+</style>
+</head>
+<body>
+<div id="probe"></div>
+
+<!-- Første gang: indsæt Claires adresse (gemmes kun på denne telefon) -->
+<div class="setup" id="setup">
+  <div class="mark">C</div>
+  <h1>Claire</h1>
+  <p>Indsæt adressen til Claire én gang. Den slutter på <b>/exec</b> og står under Implementér → Administrer implementeringer i Apps Script.</p>
+  <input id="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec">
+  <button onclick="saveUrl()">Gem og åbn Claire</button>
+  <div class="err" id="err"></div>
+</div>
+
+<div class="slow" id="slow">Åbner Claire … Sker der ikke noget? <a id="direct" href="#">Åbn Claire direkte</a></div>
+
+<script>
+  // Valgfrit: skriv Claires /exec-adresse her, så slipper man for at indsætte den på telefonen.
+  // Lad den stå tom, hvis GitHub-repoet er offentligt – så ligger adressen kun på din egen telefon.
+  var CLAIRE_URL = '';
+
+  var VALID = /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/;
+  function stored() { try { return localStorage.getItem('claire_url') || ''; } catch (e) { return ''; } }
+  function inset(prop) { var v = parseInt(getComputedStyle(document.getElementById('probe'))[prop], 10); return isNaN(v) ? 0 : v; }
+
+  function openClaire(url) {
+    var src = url + '?app=1&st=' + inset('paddingTop') + '&sb=' + inset('paddingBottom');
+    var f = document.createElement('iframe');
+    f.id = 'claire'; f.title = 'Claire'; f.src = src;
+    f.setAttribute('allow', 'clipboard-write');
+    document.body.appendChild(f);
+    document.getElementById('direct').href = url;
+    // Hvis Claire ikke dukker op (fx gammel Claire.gs uden app-tilladelse), vis et link efter 12 sek.
+    var t = setTimeout(function () { document.getElementById('slow').style.display = 'block'; }, 12000);
+    f.addEventListener('load', function () { clearTimeout(t); document.getElementById('slow').style.display = 'none'; });
+  }
+  function saveUrl() {
+    var u = document.getElementById('url').value.trim().replace(/\?.*$/, '');
+    if (!VALID.test(u)) { document.getElementById('err').textContent = 'Det ligner ikke en Claire-adresse. Den skal starte med https://script.google.com/macros/s/ og slutte på /exec.'; return; }
+    try { localStorage.setItem('claire_url', u); } catch (e) {}
+    document.getElementById('setup').classList.remove('on');
+    openClaire(u);
+  }
+
+  var url = VALID.test(CLAIRE_URL) ? CLAIRE_URL : stored();
+  if (VALID.test(url)) openClaire(url); else document.getElementById('setup').classList.add('on');
+</script>
+</body>
+</html>
