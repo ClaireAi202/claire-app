@@ -20,8 +20,11 @@
   body.setupmode { background: #0B0B0C; }
   body { font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #fff; -webkit-text-size-adjust: 100%; }
   /* Claire fylder hele skærmen; selve Claire tager højde for notch og hjem-streg (de sendes med i adressen) */
-  /* Claire fylder præcis skærmen (under klokken og ned til bunden). Højden sættes også fra JS ved drejning. */
-  #claire { position: fixed; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; border: 0; background: #EDEDED; }
+  /* Claire fylder hele skærmen fra top til bund.
+     iPhone-fejl: i en hjemmeskærm-app starter siden bag klokken, men "100% højde" er skærmen MINUS klokkens højde –
+     derfor kom der en stribe i bunden. Vi lægger klokkens højde (safe-area-inset-top) til; hvor siden ikke ligger bag
+     klokken, er den 0, så det passer på alle modeller. JS (fitFrame) gør det samme og holder højden inden for skærmen. */
+  #claire { position: fixed; top: 0; left: 0; width: 100%; height: calc(100vh + env(safe-area-inset-top)); border: 0; background: #EDEDED; }
   /* måler iPhonens sikre kanter */
   #probe { position: fixed; top: 0; left: 0; width: 0; height: 0; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); visibility: hidden; }
   .setup { display: none; min-height: 100%; box-sizing: border-box; padding: calc(40px + env(safe-area-inset-top)) 24px 40px; max-width: 460px; margin: 0 auto; }
@@ -66,7 +69,7 @@
     f.id = 'claire'; f.title = 'Claire'; f.src = src;
     f.setAttribute('allow', 'clipboard-write');
     document.body.appendChild(f);
-    fitFrame();
+    fitFrame(); setTimeout(fitFrame, 300); setTimeout(fitFrame, 1200);
     document.getElementById('direct').href = url;
     // Hvis Claire ikke dukker op (fx gammel Claire.gs uden app-tilladelse), vis et link efter 12 sek.
     var t = setTimeout(function () { document.getElementById('slow').style.display = 'block'; }, 12000);
@@ -75,7 +78,17 @@
   // Fyld hele skærmen, også bag hjem-stregen
   function fitFrame() {
     var f = document.getElementById('claire'); if (!f) return;
-    f.style.height = window.innerHeight + 'px';
+    var top = inset('paddingTop');
+    var h = window.innerHeight + top;
+    // aldrig højere end selve skærmen (i stående/liggende format)
+    try {
+      var portrait = window.innerHeight >= window.innerWidth;
+      var screenH = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+      if (screenH && h > screenH) h = screenH;
+      // App på hjemmeskærmen fylder altid hele skærmen – også hvis kanterne endnu ikke er målt (0) ved opstart
+      if (window.navigator.standalone && screenH && !top) h = screenH;
+    } catch (e) {}
+    f.style.height = h + 'px';
   }
 
   // "Husk denne enhed": iPhonen sletter Claires eget lager, når appen lukkes. Startsiden gemmer derfor nøglen
