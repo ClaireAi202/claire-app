@@ -18,7 +18,8 @@
   html, body { margin: 0; height: 100%; background: #0B0B0C; overscroll-behavior: none; }
   body { font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #fff; -webkit-text-size-adjust: 100%; }
   /* Claire fylder hele skærmen; selve Claire tager højde for notch og hjem-streg (de sendes med i adressen) */
-  #claire { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #0B0B0C; }
+  /* 100vh: på iPhone-hjemmeskærmen er 100% for kort (der kom en sort stribe i bunden) */
+  #claire { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; border: 0; background: #0B0B0C; }
   /* måler iPhonens sikre kanter */
   #probe { position: fixed; top: 0; left: 0; width: 0; height: 0; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); visibility: hidden; }
   .setup { display: none; min-height: 100%; box-sizing: border-box; padding: calc(40px + env(safe-area-inset-top)) 24px 40px; max-width: 460px; margin: 0 auto; }
@@ -63,11 +64,55 @@
     f.id = 'claire'; f.title = 'Claire'; f.src = src;
     f.setAttribute('allow', 'clipboard-write');
     document.body.appendChild(f);
+    fitFrame();
     document.getElementById('direct').href = url;
     // Hvis Claire ikke dukker op (fx gammel Claire.gs uden app-tilladelse), vis et link efter 12 sek.
     var t = setTimeout(function () { document.getElementById('slow').style.display = 'block'; }, 12000);
     f.addEventListener('load', function () { clearTimeout(t); document.getElementById('slow').style.display = 'none'; });
   }
+  // Fyld hele skærmen, også bag hjem-stregen
+  function fitFrame() {
+    var f = document.getElementById('claire'); if (!f) return;
+    var h = Math.max(window.innerHeight, document.documentElement.clientHeight);
+    if (window.navigator.standalone) {
+      var portrait = window.matchMedia('(orientation: portrait)').matches;
+      h = Math.max(h, portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height));
+    }
+    f.style.height = h + 'px';
+  }
+
+  // "Husk denne enhed": iPhonen sletter Claires eget lager, når appen lukkes. Startsiden gemmer derfor nøglen
+  // og giver den kun til Claire (Apps Script-sider på *-script.googleusercontent.com).
+  // Kanterne (notch/hjem-streg) måles igen, når Claire spørger og ved drejning – ved opstart kan de være 0
+  var lastFrame = null;
+  function sendInsets() {
+    fitFrame();
+    if (lastFrame) try { lastFrame.win.postMessage({ claire: 'insets', st: inset('paddingTop'), sb: inset('paddingBottom') }, lastFrame.origin); } catch (e) {}
+  }
+  window.addEventListener('resize', sendInsets);
+  window.addEventListener('orientationchange', function () { setTimeout(sendInsets, 300); });
+  window.addEventListener('pageshow', function () { setTimeout(sendInsets, 100); });
+  var CLAIRE_FRAME = /^https:\/\/[a-z0-9-]+-script\.googleusercontent\.com$/;
+  window.addEventListener('message', function (ev) {
+    if (!CLAIRE_FRAME.test(ev.origin)) return;
+    var f = document.getElementById('claire'); if (!f) return;
+    // Kun Claire inde i vores egen ramme (ikke en anden Apps Script-side) må få nøglen
+    var w = ev.source, inside = false;
+    try { for (var i = 0; i < 5 && w; i++) { if (w === f.contentWindow) { inside = true; break; } if (w === w.parent) break; w = w.parent; } } catch (e) {}
+    if (!inside) return;
+    var m = ev.data || {};
+    if (m.claire === 'getKey') {
+      var k = ''; try { k = localStorage.getItem('claire_dev') || ''; } catch (e) {}
+      ev.source.postMessage({ claire: 'key', key: k, st: inset('paddingTop'), sb: inset('paddingBottom') }, ev.origin);
+      lastFrame = { win: ev.source, origin: ev.origin };
+    } else if (m.claire === 'setKey') {
+      try {
+        if (/^[a-f0-9]{64}$/.test(m.key || '')) localStorage.setItem('claire_dev', m.key);
+        else localStorage.removeItem('claire_dev');
+      } catch (e) {}
+    }
+  });
+
   function saveUrl() {
     var u = document.getElementById('url').value.trim().replace(/\?.*$/, '');
     if (!VALID.test(u)) { document.getElementById('err').textContent = 'Det ligner ikke en Claire-adresse. Den skal starte med https://script.google.com/macros/s/ og slutte på /exec.'; return; }
